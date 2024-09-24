@@ -1,0 +1,29 @@
+# Ignore the Python virtual environment
+venv/
+
+# Ignore YOLOv5 model weights and cache
+yolov5/
+**/yolov5s.pt
+**/__pycache__/
+
+# Ignore system files
+.DS_Store
+Thumbs.db
+
+# Ignore Python cache files
+*.pyc
+*.pyo
+__pycache__/
+
+# Ignore logs and temp files
+*.log
+*.tmp
+
+# Ignore VS Code settings (optional, for workspace-specific settings)
+.vscode/
+
+# Ignore environment files (optional)
+.env
+
+# Ignore YOLOv5 model weights
+yolov5.pt
