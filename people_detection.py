@@ -6,8 +6,8 @@ from sort import Sort  # SORT tracker
 # Load the YOLOv5 model
 model = torch.hub.load('ultralytics/yolov5', 'yolov5s')
 
-# Initialize the SORT tracker
-tracker = Sort()
+# Initialize the SORT tracker with updated parameters for better tracking persistence
+tracker = Sort(max_age=10, min_hits=3, iou_threshold=0.25)
 
 def detect_and_track_people(video_path):
     cap = cv2.VideoCapture(video_path)
@@ -52,10 +52,14 @@ def detect_and_track_people(video_path):
                 unique_ids.add(track_id)
 
             # Draw the bounding boxes and track ID on the frame
-            cv2.rectangle(frame, (x1, y1), (x2, y2), (255, 0, 0), 2)
-            cv2.putText(frame, f'Person: {track_id}', (x1, y1 - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.9, (36, 255, 12), 2)
+            cv2.rectangle(frame, (x1, y1), (x2, y2), (255, 0, 0), 2)  # Bounding box in blue (BGR: 255, 0, 0)
+            cv2.putText(frame, f'Person: {track_id}', (x1, y1 - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.9, (255, 255, 255), 2)  # Text in white
 
-        # Show the frame with the tracking boxes
+        # Display the total number of unique people detected
+        total_people_text = f'Total People: {len(unique_ids)}'
+        cv2.putText(frame, total_people_text, (20, 40), cv2.FONT_HERSHEY_SIMPLEX, 1.0, (0, 0, 255), 2)  # Text in red
+
+        # Show the frame with the tracking boxes and total count
         cv2.imshow('People Detection and Tracking', frame)
 
         # Press 'q' to exit early
@@ -68,5 +72,5 @@ def detect_and_track_people(video_path):
     cv2.destroyAllWindows()
 
 # Test the function on a sample video
-video_path = './sample/footage_4.mp4'  # Replace with your video file path, or use 0 for webcam
+video_path = './sample/footage_5.mp4'  # Replace with your video file path, or use 0 for webcam
 detect_and_track_people(video_path)
