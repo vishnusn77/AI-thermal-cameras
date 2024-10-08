@@ -1,19 +1,46 @@
 import cv2
 import torch
 import numpy as np
+import warnings
+warnings.filterwarnings("ignore", category=FutureWarning)
 from sort import Sort  # SORT tracker
 
-# Load the YOLOv5 model
+# Configuration
+# CROWD_THRESHOLD = 10
+# TEMPERATURE_THRESHOLD = 37.5
+# RTSP_URL = "rtsp://admin:Admin12345@192.168.1.142/Streaming/channels/2"
+
+# Initialize YOLOv5 model
 model = torch.hub.load('ultralytics/yolov5', 'yolov5s')
 
 # Initialize the SORT tracker with updated parameters for better tracking persistence
 tracker = Sort(max_age=10, min_hits=3, iou_threshold=0.25)
 
-def detect_and_track_people(video_path):
-    cap = cv2.VideoCapture(video_path)
+def detect_and_track_people(video_source="webcam", video_path=None, rtsp_url=None):
+    """
+    Detect and track people from different video sources.
+
+    Parameters:
+    - video_source: 'webcam' | 'video' | 'rtsp'
+    - video_path: If video_source is 'video', provide the video file path.
+    - rtsp_url: If video_source is 'rtsp', provide the RTSP stream URL.
+    """
     
+    if video_source == "webcam":
+        # Open live webcam stream (default webcam)
+        cap = cv2.VideoCapture(0)
+    elif video_source == "video" and video_path:
+        # Open video file
+        cap = cv2.VideoCapture(video_path)
+    elif video_source == "rtsp" and rtsp_url:
+        # Connect to the Provix camera using the RTSP URL
+        cap = cv2.VideoCapture(rtsp_url)
+    else:
+        print("Error: Invalid video source or missing parameters.")
+        return
+
     if not cap.isOpened():
-        print("Error: Could not open video file.")
+        print("Error: Could not open video stream.")
         return
 
     unique_ids = set()  # Set to store unique IDs of tracked people
@@ -21,9 +48,9 @@ def detect_and_track_people(video_path):
     while True:
         ret, frame = cap.read()
 
-        # Exit the loop if the video has ended
+        # Exit the loop if there are no frames captured
         if not ret:
-            print(f"Total people detected: {len(unique_ids)}")
+            print("Error: Could not read frame from camera.")
             break
 
         # Use YOLOv5 to detect objects in the frame
@@ -40,10 +67,13 @@ def detect_and_track_people(video_path):
         # Convert to numpy array
         detections = np.array(detections)
 
-        # Update the tracker with current detections
-        tracked_objects = tracker.update(detections)
+        # Update the tracker with current detections, only if there are detections
+        if len(detections) > 0:
+            tracked_objects = tracker.update(detections)
+        else:
+            tracked_objects = []
 
-        # Loop through tracked objects
+        # Loop through tracked objects and draw them on the frame
         for track in tracked_objects:
             x1, y1, x2, y2, track_id = int(track[0]), int(track[1]), int(track[2]), int(track[3]), int(track[4])
 
@@ -70,7 +100,3 @@ def detect_and_track_people(video_path):
     # Release resources
     cap.release()
     cv2.destroyAllWindows()
-
-# Test the function on a sample video
-video_path = './sample/footage_5.mp4'  # Replace with your video file path, or use 0 for webcam
-detect_and_track_people(video_path)
