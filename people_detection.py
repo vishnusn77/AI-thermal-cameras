@@ -5,13 +5,8 @@ import warnings
 warnings.filterwarnings("ignore", category=FutureWarning)
 from sort import Sort  # SORT tracker
 
-# Configuration
-# CROWD_THRESHOLD = 10
-# TEMPERATURE_THRESHOLD = 37.5
-# RTSP_URL = "rtsp://admin:Admin12345@192.168.1.142/Streaming/channels/2"
-
 # Initialize YOLOv5 model
-model = torch.hub.load('ultralytics/yolov5', 'yolov5s')
+model = torch.hub.load('ultralytics/yolov5', 'yolov5n')
 
 # Initialize the SORT tracker with updated parameters for better tracking persistence
 tracker = Sort(max_age=10, min_hits=3, iou_threshold=0.25)
@@ -39,6 +34,14 @@ def detect_and_track_people(video_source="webcam", video_path=None, rtsp_url=Non
         print("Error: Invalid video source or missing parameters.")
         return
 
+    # Set buffer size to reduce latency
+    cap.set(cv2.CAP_PROP_BUFFERSIZE, 1)
+
+    # Optionally, set frame size and frame rate
+    cap.set(cv2.CAP_PROP_FRAME_WIDTH, 640)
+    cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 480)
+    cap.set(cv2.CAP_PROP_FPS, 30)
+
     if not cap.isOpened():
         print("Error: Could not open video stream.")
         return
@@ -53,15 +56,20 @@ def detect_and_track_people(video_source="webcam", video_path=None, rtsp_url=Non
             print("Error: Could not read frame from camera.")
             break
 
-        # Use YOLOv5 to detect objects in the frame
-        results = model(frame)
+        # Resize frame to speed up YOLO inference
+        resized_frame = cv2.resize(frame, (320, 240))
+
+        # Use YOLOv5 to detect objects in the resized frame
+        results = model(resized_frame)
+
+        # Filter out low-confidence detections to speed up processing
         detected_objects = results.pandas().xyxy[0]
-        people = detected_objects[detected_objects['name'] == 'person']
+        people = detected_objects[(detected_objects['name'] == 'person') & (detected_objects['confidence'] > 0.4)]
 
         # Prepare detections for the tracker: format [xmin, ymin, xmax, ymax, score]
         detections = []
         for _, person in people.iterrows():
-            xmin, ymin, xmax, ymax, score = int(person['xmin']), int(person['ymin']), int(person['xmax']), int(person['ymax']), person['confidence']
+            xmin, ymin, xmax, ymax, score = int(person['xmin'] * 2), int(person['ymin'] * 2), int(person['xmax'] * 2), int(person['ymax'] * 2), person['confidence']
             detections.append([xmin, ymin, xmax, ymax, score])
 
         # Convert to numpy array

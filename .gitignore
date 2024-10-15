@@ -1,10 +1,13 @@
 # Ignore the Python virtual environment
 venv/
+myenv/
 
 # Ignore YOLOv5 model weights and cache
 yolov5/
 **/yolov5s.pt
 **/__pycache__/
+**/yolov5su.pt
+**/yolov8n.pt
 
 # Ignore system files
 .DS_Store
