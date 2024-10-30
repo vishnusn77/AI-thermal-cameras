@@ -11,17 +11,10 @@ model = torch.hub.load('ultralytics/yolov5', 'yolov5s')
 # Initialize the SORT tracker with updated parameters for better tracking persistence
 tracker = Sort(max_age=10, min_hits=3, iou_threshold=0.25)
 
-def detect_and_track_people(video_source="webcam", video_path=None, rtsp_url=None):
-    """
-    Detect and track people from different video sources.
+# Define crowd threshold for alerts
+CROWD_THRESHOLD = 9  # Set this to the desired maximum crowd size
 
-    Parameters:
-    - video_source: 'webcam' | 'video' | 'rtsp'
-    - video_path: If video_source is 'video', provide the video file path.
-    - rtsp_url: If video_source is 'rtsp', provide the RTSP stream URL.
-    """
-    
-    # Set up video capture based on source
+def detect_and_track_people(video_source="webcam", video_path=None, rtsp_url=None):
     if video_source == "webcam":
         cap = cv2.VideoCapture(0)
     elif video_source == "video" and video_path:
@@ -32,12 +25,11 @@ def detect_and_track_people(video_source="webcam", video_path=None, rtsp_url=Non
         print("Error: Invalid video source or missing parameters.")
         return
 
-    # Apply optimizations only for RTSP stream
     if video_source == "rtsp":
-        cap.set(cv2.CAP_PROP_BUFFERSIZE, 1)  # Reduce buffer size for lower latency
+        cap.set(cv2.CAP_PROP_BUFFERSIZE, 1)
         cap.set(cv2.CAP_PROP_FRAME_WIDTH, 640)
         cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 480)
-        cap.set(cv2.CAP_PROP_FPS, 15)  # Lower FPS to lighten load
+        cap.set(cv2.CAP_PROP_FPS, 15)
 
     if not cap.isOpened():
         print("Error: Could not open video stream.")
@@ -48,63 +40,62 @@ def detect_and_track_people(video_source="webcam", video_path=None, rtsp_url=Non
     while True:
         ret, frame = cap.read()
         
-        # Exit the loop if there are no frames captured
+        # If video ends, print final crowd count without error message
         if not ret:
-            print("Error: Could not read frame from camera.")
+            print(f"Crowd limit is: {CROWD_THRESHOLD}")
+            print(f"Total people detected: {len(unique_ids)}")
             break
 
-        # Resize frame for RTSP only to speed up YOLO inference
-        if video_source == "rtsp":
-            resized_frame = cv2.resize(frame, (320, 240))  # Resize for RTSP stream
-        else:
-            resized_frame = frame  # Keep original resolution for other sources
+        # Resize frame for RTSP to speed up YOLO inference
+        resized_frame = cv2.resize(frame, (320, 240)) if video_source == "rtsp" else frame
 
-        # Use YOLOv5 to detect objects in the frame
+        # Detect people using YOLOv5
         results = model(resized_frame)
         detected_objects = results.pandas().xyxy[0]
         people = detected_objects[detected_objects['name'] == 'person']
 
-        # Prepare detections for the tracker: format [xmin, ymin, xmax, ymax, score]
+        # Prepare detections for tracker
         detections = []
         for _, person in people.iterrows():
             if video_source == "rtsp":
-                # Scale bounding boxes back up for resized frame
                 xmin, ymin, xmax, ymax, score = int(person['xmin'] * 2), int(person['ymin'] * 2), int(person['xmax'] * 2), int(person['ymax'] * 2), person['confidence']
             else:
-                # Use original bounding box for other sources
                 xmin, ymin, xmax, ymax, score = int(person['xmin']), int(person['ymin']), int(person['xmax']), int(person['ymax']), person['confidence']
             detections.append([xmin, ymin, xmax, ymax, score])
 
-        # Convert detections to numpy array
+        # Convert to numpy array
         detections = np.array(detections)
 
-        # Update the tracker with current detections
+        # Update the tracker
         tracked_objects = tracker.update(detections) if len(detections) > 0 else []
 
-        # Loop through tracked objects and draw them on the frame
+        # Draw bounding boxes and track ID on the frame
         for track in tracked_objects:
             x1, y1, x2, y2, track_id = int(track[0]), int(track[1]), int(track[2]), int(track[3]), int(track[4])
-
-            # If track_id is new, add it to unique_ids
             if track_id not in unique_ids:
                 unique_ids.add(track_id)
-
-            # Draw bounding box and track ID on the frame
             cv2.rectangle(frame, (x1, y1), (x2, y2), (255, 0, 0), 2)
             cv2.putText(frame, f'Person: {track_id}', (x1, y1 - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.9, (255, 255, 255), 2)
 
-        # Display total number of unique people detected
-        total_people_text = f'Total People: {len(unique_ids)}'
+        # Display crowd count and alert message if crowd exceeds threshold
+        total_people = len(unique_ids)
+        total_people_text = f'Total People: {total_people}'
         cv2.putText(frame, total_people_text, (20, 40), cv2.FONT_HERSHEY_SIMPLEX, 1.0, (0, 0, 255), 2)
+        
+        # Check if crowd count exceeds the threshold
+        if total_people > CROWD_THRESHOLD:
+            alert_text = "ALERT: Crowd limit exceeded!"
+            cv2.putText(frame, alert_text, (20, 80), cv2.FONT_HERSHEY_SIMPLEX, 1.2, (0, 0, 255), 3)
+            print(f"Crowd limit is: {CROWD_THRESHOLD}")
+            print(alert_text)
 
-        # Show the frame with bounding boxes and total count
+        # Show the frame with bounding boxes and alerts
         cv2.imshow('People Detection and Tracking', frame)
 
-        # Press 'q' to exit early
         if cv2.waitKey(1) & 0xFF == ord('q'):
-            print(f"Exiting early. Total people detected: {len(unique_ids)}")
+            print(f"Crowd limit is: {CROWD_THRESHOLD}")
+            print(f"Total people detected: {total_people}")
             break
 
-    # Release resources
     cap.release()
     cv2.destroyAllWindows()
