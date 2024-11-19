@@ -10,7 +10,7 @@ if __name__ == "__main__":
     # run(video_source="webcam")
 
     # For a video file (replace with the actual path to your video file)
-    # run(video_source="video", video_path="./sample/footage_5.mp4")
+    run(video_source="video", video_path="./sample/footage_10.mp4")
 
     # For RTSP stream from the Provix camera
-     run(video_source="rtsp", rtsp_url="rtsp://admin:Admin12345@192.168.1.142/Streaming/channels/2")
+    #  run(video_source="rtsp", rtsp_url="rtsp://admin:Admin12345@192.168.1.142/Streaming/channels/2")
