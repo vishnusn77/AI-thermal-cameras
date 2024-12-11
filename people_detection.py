@@ -20,7 +20,7 @@ model = torch.hub.load('ultralytics/yolov5', 'yolov5s')
 tracker = Sort(max_age=10, min_hits=3, iou_threshold=0.25)
 
 # Define thresholds
-CROWD_THRESHOLD = 1  # Maximum number of people before triggering a crowd alert
+CROWD_THRESHOLD = 2  # Maximum number of people before triggering a crowd alert
 TEMPERATURE_THRESHOLD = 35.0  # Temperature threshold for alerts
 SCREENSHOT_INTERVAL = 0.25  # Capture screenshots every 0.25 seconds
 
@@ -50,10 +50,6 @@ def extract_green_text(image):
             return "Invalid Temperature"
     else:
         return "No Temperature Found"
-
-# Function to define alert callback with message and color
-def alert_callback(message, color):
-    print(f"ALERT: {message} (Color: {color})")
 
 # Main function for detection, tracking, and monitoring
 def detect_and_track_people(video_source="webcam", video_path=None, rtsp_url=None, alert_callback=None):
@@ -129,25 +125,50 @@ def detect_and_track_people(video_source="webcam", video_path=None, rtsp_url=Non
                 temp for temp in person_temperatures.values() if temp > TEMPERATURE_THRESHOLD
             ]
 
-            # Start with the default message
-            alert_message = f"Total people detected: {total_people}.\n"
-            alert_color = "#32CD32"  # Default color for normal message
+            # Crowd Alert
+            crowd_status = "Exceeded" if total_people > CROWD_THRESHOLD else "Normal"
+            crowd_alert_message = (
+                "⚠️ Area overcrowded! Please ensure social distancing."
+                if crowd_status == "Exceeded" else ""
+            )
 
-            if total_people > CROWD_THRESHOLD:
-                alert_message += f"Crowd limit exceeded!\n"
-                alert_color = "#ff6347"  # Red for crowd alert
+            crowd_message = (
+                f"- Crowd capacity: {CROWD_THRESHOLD}\n"
+                f"- Total people detected: {total_people}\n"
+                f"- Status: {crowd_status}\n"
+                # f"{crowd_alert_message}"
+            )
+            crowd_color = "#ff6347" if total_people > CROWD_THRESHOLD else "#32CD32"
 
-            if len(exceeding_temperatures) >= 2:
-                alert_message += (
-                    f"Temperature alert! {len(exceeding_temperatures)} people have temperatures exceeding {TEMPERATURE_THRESHOLD}°C.\n"
-                )
-                alert_color = "#ff4500" if total_people <= CROWD_THRESHOLD else alert_color  # Orange for temp alert
+            # Temperature Alert
+            temp_status = "Exceeded" if len(exceeding_temperatures) >= 2 else "Normal"
+            temp_alert_message = (
+                "⚠️ Elevated body temperature detected! Please wear a mask."
+                if temp_status == "Exceeded" else ""
+            )
 
-            # Add detected temperatures to the message
-            alert_message += f"Detected temperatures: {', '.join([f'{temp}°C' for temp in person_temperatures.values()])}"
+            temp_message = (
+                f"- Temperature threshold: {TEMPERATURE_THRESHOLD}°C\n"
+                f"- Detected Temperatures: {', '.join([f'{temp}°C' for temp in person_temperatures.values()])}\n"
+                f"- Status: {temp_status}\n"
+                # f"{temp_alert_message}"
+            )
+            temp_color = "#ff4500" if len(exceeding_temperatures) >= 2 else "#32CD32"
 
+            # Send alerts
             if alert_callback:
-                alert_callback(alert_message, alert_color)
+                alert_callback({
+                    "type": "crowd",
+                    "message": crowd_message,
+                    "color": crowd_color,
+                    "alert_message": crowd_alert_message  # Pass the alert message separately
+                })
+                alert_callback({
+                    "type": "temperature",
+                    "message": temp_message,
+                    "color": temp_color,
+                    "alert_message": temp_alert_message  # Pass the alert message separately
+                })
 
             last_screenshot_time = current_time
 

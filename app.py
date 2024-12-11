@@ -5,13 +5,12 @@ from alert_display import run_alert_system
 
 # Function to handle the detection and populate alerts
 def detection_process(alert_queue, video_source="video", video_path=None, rtsp_url=None):
-    def alert_callback(alert_message, color):
+    def alert_callback(alert_data):
         """
         Sends alert messages to the alert system.
-        :param alert_message: The alert message.
-        :param color: The color code for the alert text.
+        :param alert_data: A dictionary containing the alert type, message, and color.
         """
-        alert_queue.put({"message": alert_message, "color": color})
+        alert_queue.put(alert_data)
 
     # Assuming `detect_and_track_people` processes video in real-time and invokes the callback when needed
     detect_and_track_people(
@@ -29,7 +28,7 @@ def main():
     # Processes for detection and alert display
     detection_proc = Process(
         target=detection_process,
-        args=(alert_queue, ),
+        args=(alert_queue,),
         kwargs={
             "video_source": "video",  # Change to "webcam" or "rtsp" or "video" as needed
             "video_path": "./sample/footage_21.mp4",  # Or specify the RTSP URL for live video
