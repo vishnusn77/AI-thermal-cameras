@@ -20,8 +20,9 @@ model = torch.hub.load('ultralytics/yolov5', 'yolov5s')
 tracker = Sort(max_age=10, min_hits=3, iou_threshold=0.25)
 
 # Define thresholds
-CROWD_THRESHOLD = 2  # Maximum number of people before triggering a crowd alert
+CROWD_THRESHOLD = 2  # Maximum number of people allowed before triggering a crowd alert
 TEMPERATURE_THRESHOLD = 35.0  # Temperature threshold for alerts
+
 SCREENSHOT_INTERVAL = 0.25  # Capture screenshots every 0.25 seconds
 
 # Dictionary to store the highest temperature for each person

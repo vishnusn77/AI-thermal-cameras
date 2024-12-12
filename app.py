@@ -31,7 +31,7 @@ def main():
         args=(alert_queue,),
         kwargs={
             "video_source": "video",  # Change to "webcam" or "rtsp" or "video" as needed
-            "video_path": "./sample/footage_21.mp4",  # Or specify the RTSP URL for live video
+            "video_path": "./sample/footage_5.mp4",  # Or specify the RTSP URL for live video
             # Uncomment the following line for RTSP
             # "rtsp_url": "rtsp://admin:Admin12345@192.168.1.142/Streaming/channels/2",
         }
